@@ -1,5 +1,10 @@
 "use strict";
 
+// =========================================================
+// References DOM
+// =========================================================
+// Tous les elements utilises par le moteur de jeu sont resolves ici
+// pour eviter de faire des recherches DOM repetitives dans la boucle.
 const canevas = document.getElementById("gameCanvas");
 const contexte = canevas.getContext("2d");
 const overlayCentre = document.getElementById("overlay");
@@ -9,6 +14,11 @@ const boutonGyroInitial = document.getElementById("motionBtn");
 const panneauScore = document.getElementById("distancePanel");
 const panneauEtat = document.getElementById("statusPanel");
 
+// =========================================================
+// Configuration statique
+// =========================================================
+// Cette section contient les constantes de gameplay.
+// Modifier ici permet d'equilibrer le jeu rapidement.
 const configuration = {
   objectifScore: 30,
   physique: { gravite: 980, impulsionSaut: -340, vitesseChuteMax: 560 },
@@ -24,6 +34,10 @@ const configuration = {
   joueur: { ratioX: 0.27, ratioYDepart: 0.45, rayonCollision: 16 }
 };
 
+// =========================================================
+// Etat runtime de la partie
+// =========================================================
+// Toute l'information dynamique de la session en cours.
 const partie = {
   mode: "menu", // menu | en_cours | pause | perdu | gagne
   score: 0,
@@ -38,6 +52,7 @@ const partie = {
   dernierTypeTuyau: "normal"
 };
 
+// Etat du decor, des obstacles et des vitesses de defilement.
 const monde = {
   ySol: 0,
   minuterieTuyau: 0,
@@ -49,14 +64,22 @@ const monde = {
   intervalleTuyau: configuration.monde.intervalleTuyauBase
 };
 
+// Etat d'entree minimaliste: le saut est file d'attente
+// pour rester robuste meme si plusieurs events arrivent vite.
 const entree = { sautEnAttente: false };
+// Entite joueur (position, vitesse, feedback visuel).
 const henriette = { x: 0, y: 0, vitesseY: 0, rayonCollision: configuration.joueur.rayonCollision, minuterieFlash: 0, tracees: [] };
+// Context audio cree uniquement apres interaction utilisateur.
 const audioJeu = { contexte: null };
 
+// =========================================================
+// Utilitaires mathematiques
+// =========================================================
 function borner(v, min, max) { return Math.max(min, Math.min(max, v)); }
 function interpolationLineaire(a, b, t) { return a + (b - a) * t; }
 function aleatoire(min, max) { return Math.random() * (max - min) + min; }
 function collisionCercleRectangle(rect, cercle) {
+  // Projection du centre du cercle sur le rectangle puis distance.
   const nx = borner(cercle.x, rect.x, rect.x + rect.w);
   const ny = borner(cercle.y, rect.y, rect.y + rect.h);
   const dx = cercle.x - nx;
@@ -64,6 +87,10 @@ function collisionCercleRectangle(rect, cercle) {
   return dx * dx + dy * dy < cercle.r * cercle.r;
 }
 
+// =========================================================
+// Audio procedural
+// =========================================================
+// Aucun fichier son externe: de petits bips synthetiques WebAudio.
 function initialiserAudioSiNecessaire() {
   if (!audioJeu.contexte) {
     const ContexteAudio = window.AudioContext || window.webkitAudioContext;
@@ -75,6 +102,7 @@ function debloquerAudio() {
   if (audioJeu.contexte && audioJeu.contexte.state === "suspended") audioJeu.contexte.resume();
 }
 function jouerSon(fd, ff, d, type, vol) {
+  // fd=frequence depart, ff=frequence fin, d=duree.
   if (!audioJeu.contexte) return;
   const t0 = audioJeu.contexte.currentTime;
   const osc = audioJeu.contexte.createOscillator();
@@ -90,6 +118,7 @@ function jouerSon(fd, ff, d, type, vol) {
   osc.start(t0);
   osc.stop(t0 + d);
 }
+// Presets de sons utilises par les moments clefs du jeu.
 const jouerSonSaut = () => jouerSon(520, 290, 0.07, "triangle", 0.04);
 const jouerSonPoint = () => jouerSon(630, 760, 0.06, "square", 0.03);
 const jouerSonBonus = () => jouerSon(420, 960, 0.11, "sine", 0.05);
@@ -97,7 +126,11 @@ const jouerSonPause = () => jouerSon(320, 220, 0.08, "triangle", 0.035);
 const jouerSonDefaite = () => jouerSon(280, 90, 0.2, "sawtooth", 0.05);
 const jouerSonVictoire = () => jouerSon(480, 920, 0.2, "triangle", 0.055);
 
+// =========================================================
+// Mise en page responsive
+// =========================================================
 function redimensionnerCanevas() {
+  // Le sol est defini a 86% de la hauteur ecran.
   canevas.width = window.innerWidth;
   canevas.height = window.innerHeight;
   monde.ySol = canevas.height * 0.86;
@@ -105,6 +138,9 @@ function redimensionnerCanevas() {
 }
 window.addEventListener("resize", redimensionnerCanevas);
 
+// =========================================================
+// Generation du decor de fond
+// =========================================================
 function initialiserDecor() {
   monde.arbresLointains = [];
   monde.fleurs = [];
@@ -113,6 +149,7 @@ function initialiserDecor() {
 }
 function choisirTypeTuyau() {
   // Le tuyau de fin est genere a part (hors tirage normal).
+  // On evite deux tuyaux rouges consecutifs via dernierTypeTuyau.
   const r = Math.random();
   if (partie.score >= 8 && r < 0.18 && partie.dernierTypeTuyau !== "boost") return "boost";
   if (partie.score >= 10 && r < 0.34) return "mobile";
@@ -121,6 +158,7 @@ function choisirTypeTuyau() {
   return "normal";
 }
 function genererPaireTuyaux() {
+  // Plus on avance, plus les ouvertures se resserrent.
   const prog = borner(partie.score / configuration.objectifScore, 0, 1);
   const min = interpolationLineaire(configuration.monde.ouvertureMinDebut, configuration.monde.ouvertureMinFin, prog);
   const max = interpolationLineaire(configuration.monde.ouvertureMaxDebut, configuration.monde.ouvertureMaxFin, prog);
@@ -134,6 +172,7 @@ function genererPaireTuyaux() {
     hauteurOuverture: ouverture,
     type,
     phase: aleatoire(0, Math.PI * 2),
+    // Les tuyaux "mobile" se deplacent verticalement.
     vitesseVerticale: type === "mobile" ? aleatoire(35, 70) * (Math.random() < 0.5 ? -1 : 1) : 0,
     scoreDejaCompte: false
   });
@@ -141,6 +180,7 @@ function genererPaireTuyaux() {
 }
 
 function genererTuyauFinal() {
+  // Ce tuyau unique valide le dernier point (objectif final).
   const prog = borner(partie.score / configuration.objectifScore, 0, 1);
   const min = interpolationLineaire(configuration.monde.ouvertureMinDebut, configuration.monde.ouvertureMinFin, prog);
   const max = interpolationLineaire(configuration.monde.ouvertureMaxDebut, configuration.monde.ouvertureMaxFin, prog);
@@ -161,16 +201,23 @@ function genererTuyauFinal() {
   partie.dernierTypeTuyau = "fin";
 }
 
+// =========================================================
+// Particules
+// =========================================================
 function ajouterParticulesTap(x, y) {
   for (let i = 0; i < 9; i++) monde.particules.push({ x, y, vx: aleatoire(-55, 55), vy: aleatoire(-20, 70), vie: aleatoire(0.16, 0.32), taille: aleatoire(2, 4), teinte: aleatoire(35, 65) });
 }
 function mettreAJourParticules(dt) {
+  // Les particules ont une duree de vie courte.
   for (const p of monde.particules) {
     p.vie -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 160 * dt;
   }
   monde.particules = monde.particules.filter((p) => p.vie > 0);
 }
 
+// =========================================================
+// Entrees joueur (souris/tactile/clavier)
+// =========================================================
 function demanderSaut() { if (partie.mode === "en_cours") entree.sautEnAttente = true; }
 function mettreEnPause() { if (partie.mode !== "en_cours") return; partie.mode = "pause"; definirEtat("Pause"); jouerSonPause(); afficherPause(); }
 function reprendrePartie() { if (partie.mode !== "pause") return; partie.mode = "en_cours"; overlayCentre.classList.add("hidden"); definirEtat("En vol"); dernierTemps = performance.now(); jouerSonPause(); }
@@ -183,6 +230,7 @@ canevas.addEventListener("pointerdown", () => {
   else demanderSaut();
 });
 window.addEventListener("keydown", (e) => {
+  // P / Echap: toggle pause.
   if (e.code === "KeyP" || e.code === "Escape") { if (partie.mode === "en_cours") mettreEnPause(); else if (partie.mode === "pause") reprendrePartie(); return; }
   if (e.code === "Space" || e.code === "ArrowUp") {
     e.preventDefault(); debloquerAudio();
@@ -194,6 +242,7 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "Enter" && (partie.mode === "perdu" || partie.mode === "gagne")) reinitialiserPartie();
 });
 
+// Permission iOS pour DeviceOrientation (info utilisateur).
 async function demanderPermissionGyroscope() {
   if (typeof DeviceOrientationEvent === "undefined") return definirEtat("Gyroscope indisponible");
   try {
@@ -205,7 +254,11 @@ async function demanderPermissionGyroscope() {
   } catch (erreur) { definirEtat("Erreur gyroscope"); console.error(erreur); }
 }
 
+// =========================================================
+// Cycle de partie
+// =========================================================
 function reinitialiserPartie() {
+  // Reinitialisation COMPLETE pour repartir proprement.
   partie.mode = "menu"; partie.score = 0; partie.temps = 0; partie.signeGravite = 1;
   partie.minuterieTurbo = 0; partie.minuterieBouclier = 0; partie.minuterieInverse = 0; partie.minuterieRafale = 0; partie.forceRafale = 0;
   partie.tuyauFinalGenere = false; partie.dernierTypeTuyau = "normal";
@@ -224,6 +277,7 @@ function appliquerEntree() {
   entree.sautEnAttente = false;
 }
 function mettreAJourHenriette(dt) {
+  // Physique verticale simple: gravite + vitesse.
   let g = configuration.physique.gravite;
   henriette.vitesseY += g * partie.signeGravite * dt;
   henriette.vitesseY = borner(henriette.vitesseY, -configuration.physique.vitesseChuteMax, configuration.physique.vitesseChuteMax);
@@ -235,38 +289,47 @@ function mettreAJourHenriette(dt) {
   for (const t of henriette.tracees) t.alpha *= 0.88;
 }
 function appliquerPouvoirTuyau(t) {
+  // Un seul effet special a la fois pour garder la lisibilite.
   const effetActif = partie.minuterieTurbo > 0 || partie.minuterieBouclier > 0 || partie.minuterieInverse > 0 || partie.minuterieRafale > 0;
   if (effetActif && t.type !== "fin" && t.type !== "normal") return;
 
   if (t.type === "boost") {
+    // Le boost combine acceleration + bouclier temporaire.
     partie.minuterieTurbo = 2.8;
     partie.minuterieBouclier = 5.0; // Bouclier limite a 5 secondes max.
     henriette.vitesseY -= 60 * partie.signeGravite;
     definirEtat("Boost: turbo + bouclier (5s)!");
     jouerSonBonus();
   }
-  else if (t.type === "mobile") { definirEtat("Tuyaux mobiles!"); }
+  else if (t.type === "mobile") {
+    // Pas d'effet direct joueur: ce type change la navigation.
+    definirEtat("Tuyaux mobiles!");
+  }
   else if (t.type === "inverse") { partie.signeGravite *= -1; partie.minuterieInverse = 3.8; definirEtat("Gravite inversee!"); jouerSonBonus(); }
   else if (t.type === "rafale") { partie.minuterieRafale = 3.0; partie.forceRafale = aleatoire(-260, 260); definirEtat("Rafale violette!"); jouerSonBonus(); }
   else if (t.type === "fin") { definirEtat("Tuyau de fin dore!"); jouerSonBonus(); }
 }
 function mettreAJourDifficulte() {
+  // Courbe lineaire de difficulte sur le score.
   const p = borner(partie.score / configuration.objectifScore, 0, 1);
   monde.vitesseDefilement = interpolationLineaire(configuration.monde.vitesseDefilementBase, 270, p);
   monde.intervalleTuyau = interpolationLineaire(configuration.monde.intervalleTuyauBase, 0.88, p);
 }
 function mettreAJourMonde(dt) {
   mettreAJourDifficulte();
+  // Timers des effets temporaires.
   if (partie.minuterieTurbo > 0) partie.minuterieTurbo -= dt;
   if (partie.minuterieBouclier > 0) partie.minuterieBouclier -= dt;
   const multiplicateurTurbo = partie.minuterieTurbo > 0 ? 1.25 : 1;
   const v = monde.vitesseDefilement * multiplicateurTurbo;
   partie.temps += dt; monde.minuterieTuyau += dt;
+  // Le spawn standard s'arrete des que le tuyau final est planifie/genere.
   if (!partie.tuyauFinalGenere && monde.minuterieTuyau >= monde.intervalleTuyau) { monde.minuterieTuyau = 0; genererPaireTuyaux(); }
   if (partie.minuterieInverse > 0) { partie.minuterieInverse -= dt; if (partie.minuterieInverse <= 0) { partie.signeGravite = 1; definirEtat("Gravite normale"); } }
   if (partie.minuterieRafale > 0) partie.minuterieRafale -= dt;
   for (const t of monde.tuyaux) {
     if (t.type === "mobile") {
+      // Mouvements haut/bas en rebond sur bornes verticales.
       t.centreOuvertureY += t.vitesseVerticale * dt;
       if (t.centreOuvertureY < 95 || t.centreOuvertureY > monde.ySol - 95) {
         t.vitesseVerticale *= -1;
@@ -292,7 +355,7 @@ function mettreAJourMonde(dt) {
       appliquerPouvoirTuyau(t);
       ajouterParticulesTap(henriette.x + 2, henriette.y - 2);
 
-      // A 29 points, on vide les tuyaux restants puis on cree uniquement le tuyau de fin.
+      // A objectif-1: purge totale puis creation du tuyau de fin unique.
       if (partie.score === configuration.objectifScore - 1 && !partie.tuyauFinalGenere) {
         monde.tuyaux = [];
         genererTuyauFinal();
@@ -305,6 +368,7 @@ function mettreAJourMonde(dt) {
   for (const f of monde.fleurs) { f.x -= v * dt; if (f.x < -8) f.x = canevas.width + aleatoire(10, 80); }
 }
 function verifierCollisions() {
+  // Collision sol/plafond.
   const c = { x: henriette.x, y: henriette.y, r: henriette.rayonCollision };
   if (henriette.y + henriette.rayonCollision >= monde.ySol) { henriette.y = monde.ySol - henriette.rayonCollision; return perdrePartie("Le carre touche le sol"); }
   if (henriette.y - henriette.rayonCollision <= 0) { henriette.y = henriette.rayonCollision; return perdrePartie("Le carre touche le haut"); }
@@ -313,7 +377,7 @@ function verifierCollisions() {
     const bas = { x: t.x, y: t.centreOuvertureY + t.hauteurOuverture * 0.5, w: t.w, h: monde.ySol - (t.centreOuvertureY + t.hauteurOuverture * 0.5) };
     if (collisionCercleRectangle(haut, c) || collisionCercleRectangle(bas, c)) {
       if (partie.minuterieBouclier > 0) {
-        // Le bouclier est consommé après un seul impact.
+        // Le bouclier absorbe UNE collision puis disparait.
         partie.minuterieBouclier = 0;
         t.x = -200;
         henriette.vitesseY = -220 * partie.signeGravite;
@@ -326,6 +390,9 @@ function verifierCollisions() {
   }
 }
 
+// =========================================================
+// Interface et overlays
+// =========================================================
 function mettreAJourHud() { panneauScore.innerHTML = `Score: <strong>${partie.score} / ${configuration.objectifScore}</strong>`; }
 function definirEtat(texte) { panneauEtat.innerHTML = `Etat: <strong>${texte}</strong>`; }
 function afficherMenu() {
@@ -344,6 +411,8 @@ function afficherFinPartie(titre, sousTitre, succes) {
   brancherBoutonsOverlay();
 }
 function brancherBoutonsOverlay() {
+  // Les boutons de l'overlay sont recrees via innerHTML,
+  // il faut donc les re-brancher a chaque affichage.
   const bDemarrer = document.getElementById("startBtn");
   const bGyro = document.getElementById("motionBtn");
   const bReprendre = document.getElementById("resumeBtn");
@@ -354,6 +423,7 @@ function brancherBoutonsOverlay() {
   if (bRecommencer) bRecommencer.addEventListener("click", () => { reinitialiserPartie(); demarrerPartie(); });
 }
 function demarrerPartie() {
+  // Lancement depuis menu / reprise depuis fin de partie.
   debloquerAudio();
   if (partie.mode === "perdu" || partie.mode === "gagne") reinitialiserPartie();
   if (partie.mode === "pause") return reprendrePartie();
@@ -368,6 +438,9 @@ function demarrerPartie() {
 function perdrePartie(raison) { if (partie.mode !== "en_cours") return; partie.mode = "perdu"; definirEtat("Perdu"); jouerSonDefaite(); afficherFinPartie("Partie terminee", raison, false); }
 function gagnerPartie() { if (partie.mode !== "en_cours") return; partie.mode = "gagne"; definirEtat("Victoire"); jouerSonVictoire(); afficherFinPartie("Bravo, objectif atteint!", `Tu as atteint ${configuration.objectifScore} points.`, true); }
 
+// =========================================================
+// Rendu
+// =========================================================
 function dessinerNuage(x, y, e) {
   contexte.fillStyle = "#fff";
   contexte.beginPath(); contexte.arc(x - 25 * e, y, 18 * e, 0, Math.PI * 2); contexte.arc(x, y - 8 * e, 24 * e, 0, Math.PI * 2); contexte.arc(x + 25 * e, y, 18 * e, 0, Math.PI * 2); contexte.fill();
@@ -390,6 +463,7 @@ function paletteTuyau(type) {
   return { corps: "#3fb15f", tete: "#2f8f4c", marque: "" };
 }
 function dessinerPaireTuyaux(t) {
+  // Les caps ("tetes") rendent les tuyaux plus lisibles visuellement.
   const tete = 14, haut = t.centreOuvertureY - t.hauteurOuverture * 0.5, yBas = t.centreOuvertureY + t.hauteurOuverture * 0.5, bas = monde.ySol - yBas, p = paletteTuyau(t.type);
   contexte.fillStyle = p.corps; contexte.fillRect(t.x, 0, t.w, haut); contexte.fillRect(t.x, yBas, t.w, bas);
   contexte.fillStyle = p.tete; contexte.fillRect(t.x - 4, haut - tete, t.w + 8, tete); contexte.fillRect(t.x - 4, yBas, t.w + 8, tete);
@@ -412,7 +486,7 @@ function dessinerHenriette() {
     contexte.arc(0, 0, 21, 0, Math.PI * 2);
     contexte.fill();
 
-    // Barre de duree (5 secondes) sous le joueur.
+    // Barre de duree du bouclier (5 secondes max) sous le joueur.
     const largeurBarre = 36;
     const hauteurBarre = 5;
     const ratioBouclier = borner(partie.minuterieBouclier / 5, 0, 1);
@@ -438,8 +512,12 @@ function dessinerParticules() {
 }
 function dessinerFrame() { dessinerFond(); for (const t of monde.tuyaux) dessinerPaireTuyaux(t); dessinerParticules(); dessinerHenriette(); }
 
+// =========================================================
+// Boucle principale
+// =========================================================
 let dernierTemps = performance.now();
 function boucleJeu(tempsActuel) {
+  // Clamp de dt pour eviter les sauts physiques en cas de freeze onglet.
   const dt = Math.min((tempsActuel - dernierTemps) / 1000, 0.033);
   dernierTemps = tempsActuel;
   if (partie.mode === "en_cours") {
@@ -451,6 +529,9 @@ function boucleJeu(tempsActuel) {
   requestAnimationFrame(boucleJeu);
 }
 
+// =========================================================
+// Bootstrap application
+// =========================================================
 boutonDemarrerInitial.addEventListener("click", () => { if (partie.mode === "menu") demarrerPartie(); });
 boutonGyroInitial.addEventListener("click", demanderPermissionGyroscope);
 redimensionnerCanevas();
