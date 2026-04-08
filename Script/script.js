@@ -10,6 +10,7 @@ const contexte = canevas.getContext("2d");
 const overlayCentre = document.getElementById("overlay");
 const carteMessage = document.getElementById("messageCard");
 const boutonDemarrerInitial = document.getElementById("startBtn");
+const scoreFixe = document.getElementById("scoreFixe");
 
 // =========================================================
 // Configuration statique
@@ -251,7 +252,11 @@ function reinitialiserPartie() {
   monde.vitesseDefilement = configuration.monde.vitesseDefilementBase; monde.intervalleTuyau = configuration.monde.intervalleTuyauBase;
   henriette.y = canevas.height * configuration.joueur.ratioYDepart; henriette.vitesseY = 0; henriette.minuterieFlash = 0; henriette.tracees = [];
   entree.sautEnAttente = false;
-  initialiserDecor(); afficherMenu();
+  initialiserDecor(); mettreAJourScoreFixe(); afficherMenu();
+}
+function mettreAJourScoreFixe() {
+  if (!scoreFixe) return;
+  scoreFixe.textContent = `Score: ${partie.score} / ${configuration.objectifScore}`;
 }
 function appliquerEntree() {
   if (!entree.sautEnAttente) return;
@@ -528,7 +533,7 @@ function boucleJeu(tempsActuel) {
   const dt = Math.min((tempsActuel - dernierTemps) / 1000, 0.033);
   dernierTemps = tempsActuel;
   if (partie.mode === "en_cours") {
-    appliquerEntree(); mettreAJourHenriette(dt); mettreAJourMonde(dt); mettreAJourParticules(dt); verifierCollisions();
+    appliquerEntree(); mettreAJourHenriette(dt); mettreAJourMonde(dt); mettreAJourParticules(dt); verifierCollisions(); mettreAJourScoreFixe();
   } else if (partie.mode !== "pause") {
     mettreAJourParticules(dt);
   }
