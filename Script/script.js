@@ -10,7 +10,6 @@ const contexte = canevas.getContext("2d");
 const overlayCentre = document.getElementById("overlay");
 const carteMessage = document.getElementById("messageCard");
 const boutonDemarrerInitial = document.getElementById("startBtn");
-const boutonGyroInitial = document.getElementById("motionBtn");
 const panneauScore = document.getElementById("distancePanel");
 const panneauEtat = document.getElementById("statusPanel");
 
@@ -242,18 +241,6 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "Enter" && (partie.mode === "perdu" || partie.mode === "gagne")) reinitialiserPartie();
 });
 
-// Permission iOS pour DeviceOrientation (info utilisateur).
-async function demanderPermissionGyroscope() {
-  if (typeof DeviceOrientationEvent === "undefined") return definirEtat("Gyroscope indisponible");
-  try {
-    if (typeof DeviceOrientationEvent.requestPermission === "function") {
-      const rep = await DeviceOrientationEvent.requestPermission();
-      if (rep !== "granted") return definirEtat("Permission gyroscope refusee");
-    }
-    definirEtat("Gyroscope active (jeu au tap)");
-  } catch (erreur) { definirEtat("Erreur gyroscope"); console.error(erreur); }
-}
-
 // =========================================================
 // Cycle de partie
 // =========================================================
@@ -397,7 +384,37 @@ function mettreAJourHud() { panneauScore.innerHTML = `Score: <strong>${partie.sc
 function definirEtat(texte) { panneauEtat.innerHTML = `Etat: <strong>${texte}</strong>`; }
 function afficherMenu() {
   overlayCentre.classList.remove("hidden");
-  carteMessage.innerHTML = `<h1>Henriette Flappy Challenge</h1><p>Atteins <strong>${configuration.objectifScore}</strong> points pour gagner.</p><p>Tap/clic ou Espace/Fleche haut pour flap.<br>Rouge = turbo+bouclier, Vert clair = mobile, Bleu = gravite inversee, Violet = rafales.</p><div class="btn-row"><button class="primary" id="startBtn">Demarrer</button><button class="secondary" id="motionBtn">Info gyroscope</button></div><p class="hint">Pause: touche P ou Echap.</p>`;
+  carteMessage.innerHTML = `
+    <h1>Henriette Flappy Challenge</h1>
+    <p>Atteins <strong>${configuration.objectifScore}</strong> points pour gagner.</p>
+    <p>Tap/clic ou Espace/Fleche haut pour flap.</p>
+    <div class="legende-tuyaux">
+      <div class="carte-tuyau">
+        <div class="mini-tuyau boost"></div>
+        <span class="effet-tuyau">Turbo +<br>bouclier</span>
+      </div>
+      <div class="carte-tuyau">
+        <div class="mini-tuyau mobile"></div>
+        <span class="effet-tuyau">Monte /<br>descend</span>
+      </div>
+      <div class="carte-tuyau">
+        <div class="mini-tuyau inverse"></div>
+        <span class="effet-tuyau">Gravite<br>inversee</span>
+      </div>
+      <div class="carte-tuyau">
+        <div class="mini-tuyau rafale"></div>
+        <span class="effet-tuyau">Rafales<br>verticales</span>
+      </div>
+      <div class="carte-tuyau">
+        <div class="mini-tuyau fin"></div>
+        <span class="effet-tuyau">Tuyau<br>de fin</span>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="primary" id="startBtn">Demarrer</button>
+    </div>
+    <p class="hint">Pause: touche P ou Echap.</p>
+  `;
   brancherBoutonsOverlay();
 }
 function afficherPause() {
@@ -407,18 +424,16 @@ function afficherPause() {
 }
 function afficherFinPartie(titre, sousTitre, succes) {
   overlayCentre.classList.remove("hidden");
-  carteMessage.innerHTML = `<h1 style="color:${succes ? "var(--succes)" : "var(--danger)"};">${titre}</h1><p>${sousTitre}</p><p>Score final: <strong>${partie.score}</strong></p><div class="btn-row"><button class="primary" id="startBtn">Rejouer</button><button class="secondary" id="motionBtn">Info gyroscope</button></div><p class="hint">Tap ou Espace pour redemarrer rapidement.</p>`;
+  carteMessage.innerHTML = `<h1 style="color:${succes ? "var(--succes)" : "var(--danger)"};">${titre}</h1><p>${sousTitre}</p><p>Score final: <strong>${partie.score}</strong></p><div class="btn-row"><button class="primary" id="startBtn">Rejouer</button></div><p class="hint">Tap ou Espace pour redemarrer rapidement.</p>`;
   brancherBoutonsOverlay();
 }
 function brancherBoutonsOverlay() {
   // Les boutons de l'overlay sont recrees via innerHTML,
   // il faut donc les re-brancher a chaque affichage.
   const bDemarrer = document.getElementById("startBtn");
-  const bGyro = document.getElementById("motionBtn");
   const bReprendre = document.getElementById("resumeBtn");
   const bRecommencer = document.getElementById("restartBtn");
   if (bDemarrer) bDemarrer.addEventListener("click", () => { debloquerAudio(); if (partie.mode === "menu" || partie.mode === "perdu" || partie.mode === "gagne") demarrerPartie(); });
-  if (bGyro) bGyro.addEventListener("click", demanderPermissionGyroscope);
   if (bReprendre) bReprendre.addEventListener("click", () => reprendrePartie());
   if (bRecommencer) bRecommencer.addEventListener("click", () => { reinitialiserPartie(); demarrerPartie(); });
 }
@@ -533,7 +548,6 @@ function boucleJeu(tempsActuel) {
 // Bootstrap application
 // =========================================================
 boutonDemarrerInitial.addEventListener("click", () => { if (partie.mode === "menu") demarrerPartie(); });
-boutonGyroInitial.addEventListener("click", demanderPermissionGyroscope);
 redimensionnerCanevas();
 reinitialiserPartie();
 requestAnimationFrame(boucleJeu);

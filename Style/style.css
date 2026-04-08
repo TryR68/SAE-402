@@ -152,3 +152,81 @@ button:active {
   font-size: 0.9rem;
   margin-top: 6px;
 }
+
+/* Legende visuelle des tuyaux dans le menu */
+.legende-tuyaux {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(72px, 1fr));
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+
+.carte-tuyau {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  padding: 8px 4px 6px;
+}
+
+.mini-tuyau {
+  width: 24px;
+  height: 54px;
+  margin: 0 auto 5px;
+  border-radius: 3px;
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  position: relative;
+}
+
+.mini-tuyau::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  right: -5px;
+  top: -8px;
+  height: 8px;
+  border-radius: 3px 3px 0 0;
+  border: 2px solid rgba(0, 0, 0, 0.12);
+  border-bottom: none;
+}
+
+.mini-tuyau.boost {
+  background: #d94949;
+}
+.mini-tuyau.boost::before {
+  background: #a62f2f;
+}
+
+.mini-tuyau.mobile {
+  background: #55c88a;
+}
+.mini-tuyau.mobile::before {
+  background: #329b66;
+}
+
+.mini-tuyau.inverse {
+  background: #4386e0;
+}
+.mini-tuyau.inverse::before {
+  background: #2a5dab;
+}
+
+.mini-tuyau.rafale {
+  background: #9b58d5;
+}
+.mini-tuyau.rafale::before {
+  background: #6f38a8;
+}
+
+.mini-tuyau.fin {
+  background: #f1c232;
+}
+.mini-tuyau.fin::before {
+  background: #c89f1a;
+}
+
+.effet-tuyau {
+  display: block;
+  color: #dff1ff;
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
