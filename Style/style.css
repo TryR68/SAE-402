@@ -91,6 +91,9 @@ body {
   pointer-events: none;
   padding: 16px;
   text-align: center;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
 /* Carte du message central */
@@ -102,6 +105,8 @@ body {
   padding: 18px 18px 14px;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
   pointer-events: auto;
+  transform: translateY(0);
+  transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
 .message-card h1 {
@@ -159,7 +164,13 @@ button:active {
 
 /* Classe utilitaire */
 .hidden {
-  display: none;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.hidden .message-card {
+  opacity: 0;
+  transform: translateY(8px) scale(0.99);
 }
 
 /* Petit texte d'aide */
@@ -245,4 +256,17 @@ button:active {
   color: #dff1ff;
   font-size: 0.75rem;
   line-height: 1.2;
+}
+
+@media (max-width: 760px) {
+  .legende-tuyaux {
+    grid-template-columns: repeat(3, minmax(72px, 1fr));
+  }
+}
+
+@media (max-width: 460px) {
+  .legende-tuyaux {
+    grid-template-columns: repeat(2, minmax(72px, 1fr));
+    gap: 6px;
+  }
 }

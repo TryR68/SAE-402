@@ -46,7 +46,7 @@ const partie = {
   minuterieInverse: 0,
   minuterieRafale: 0,
   forceRafale: 0,
-  tuyauFinalGenere: false,
+  tuyauxGeneres: 0,
   dernierTypeTuyau: "normal"
 };
 
@@ -146,7 +146,6 @@ function initialiserDecor() {
   for (let i = 0; i < 26; i++) monde.fleurs.push({ x: aleatoire(0, canevas.width), y: aleatoire(monde.ySol + 8, canevas.height - 8), teinte: Math.floor(aleatoire(0, 360)) });
 }
 function choisirTypeTuyau() {
-  // Le tuyau de fin est genere a part (hors tirage normal).
   // On evite deux tuyaux rouges consecutifs via dernierTypeTuyau.
   const r = Math.random();
   if (partie.score >= 8 && r < 0.18 && partie.dernierTypeTuyau !== "boost") return "boost";
@@ -162,7 +161,9 @@ function genererPaireTuyaux() {
   const max = interpolationLineaire(configuration.monde.ouvertureMaxDebut, configuration.monde.ouvertureMaxFin, prog);
   const ouverture = aleatoire(min, max);
   const centre = aleatoire(70 + ouverture * 0.5, (monde.ySol - 70) - ouverture * 0.5);
-  const type = choisirTypeTuyau();
+  // Generation deterministe: le 30e tuyau est toujours le tuyau de fin.
+  const prochainNumeroTuyau = partie.tuyauxGeneres + 1;
+  const type = prochainNumeroTuyau === configuration.objectifScore ? "fin" : choisirTypeTuyau();
   monde.tuyaux.push({
     x: canevas.width + 40,
     w: configuration.monde.largeurTuyau,
@@ -174,29 +175,8 @@ function genererPaireTuyaux() {
     vitesseVerticale: type === "mobile" ? aleatoire(35, 70) * (Math.random() < 0.5 ? -1 : 1) : 0,
     scoreDejaCompte: false
   });
+  partie.tuyauxGeneres = prochainNumeroTuyau;
   partie.dernierTypeTuyau = type;
-}
-
-function genererTuyauFinal() {
-  // Ce tuyau unique valide le dernier point (objectif final).
-  const prog = borner(partie.score / configuration.objectifScore, 0, 1);
-  const min = interpolationLineaire(configuration.monde.ouvertureMinDebut, configuration.monde.ouvertureMinFin, prog);
-  const max = interpolationLineaire(configuration.monde.ouvertureMaxDebut, configuration.monde.ouvertureMaxFin, prog);
-  const ouverture = aleatoire(min, max);
-  const centre = aleatoire(70 + ouverture * 0.5, (monde.ySol - 70) - ouverture * 0.5);
-
-  monde.tuyaux.push({
-    x: canevas.width + 120,
-    w: configuration.monde.largeurTuyau,
-    centreOuvertureY: centre,
-    hauteurOuverture: ouverture,
-    type: "fin",
-    phase: aleatoire(0, Math.PI * 2),
-    vitesseVerticale: 0,
-    scoreDejaCompte: false
-  });
-  partie.tuyauFinalGenere = true;
-  partie.dernierTypeTuyau = "fin";
 }
 
 // =========================================================
@@ -247,7 +227,7 @@ function reinitialiserPartie() {
   // Reinitialisation COMPLETE pour repartir proprement.
   partie.mode = "menu"; partie.score = 0; partie.temps = 0; partie.signeGravite = 1;
   partie.minuterieTurbo = 0; partie.minuterieBouclier = 0; partie.minuterieInverse = 0; partie.minuterieRafale = 0; partie.forceRafale = 0;
-  partie.tuyauFinalGenere = false; partie.dernierTypeTuyau = "normal";
+  partie.tuyauxGeneres = 0; partie.dernierTypeTuyau = "normal";
   monde.minuterieTuyau = 0; monde.tuyaux = []; monde.particules = [];
   monde.vitesseDefilement = configuration.monde.vitesseDefilementBase; monde.intervalleTuyau = configuration.monde.intervalleTuyauBase;
   henriette.y = canevas.height * configuration.joueur.ratioYDepart; henriette.vitesseY = 0; henriette.minuterieFlash = 0; henriette.tracees = [];
@@ -311,8 +291,11 @@ function mettreAJourMonde(dt) {
   const multiplicateurTurbo = partie.minuterieTurbo > 0 ? 1.25 : 1;
   const v = monde.vitesseDefilement * multiplicateurTurbo;
   partie.temps += dt; monde.minuterieTuyau += dt;
-  // Le spawn standard s'arrete des que le tuyau final est planifie/genere.
-  if (!partie.tuyauFinalGenere && monde.minuterieTuyau >= monde.intervalleTuyau) { monde.minuterieTuyau = 0; genererPaireTuyaux(); }
+  // On genere exactement objectifScore tuyaux, pas un de plus.
+  if (partie.tuyauxGeneres < configuration.objectifScore && monde.minuterieTuyau >= monde.intervalleTuyau) {
+    monde.minuterieTuyau = 0;
+    genererPaireTuyaux();
+  }
   if (partie.minuterieInverse > 0) { partie.minuterieInverse -= dt; if (partie.minuterieInverse <= 0) { partie.signeGravite = 1; } }
   if (partie.minuterieRafale > 0) partie.minuterieRafale -= dt;
   for (const t of monde.tuyaux) {
@@ -342,13 +325,6 @@ function mettreAJourMonde(dt) {
       jouerSonPoint();
       appliquerPouvoirTuyau(t);
       ajouterParticulesTap(henriette.x + 2, henriette.y - 2);
-
-      // A objectif-1: purge totale puis creation du tuyau de fin unique.
-      if (partie.score === configuration.objectifScore - 1 && !partie.tuyauFinalGenere) {
-        monde.tuyaux = [];
-        genererTuyauFinal();
-        return;
-      }
     }
   }
   monde.tuyaux = monde.tuyaux.filter((t) => t.x + t.w > -20);
@@ -477,9 +453,18 @@ function paletteTuyau(type) {
 function dessinerPaireTuyaux(t) {
   // Les caps ("tetes") rendent les tuyaux plus lisibles visuellement.
   const tete = 14, haut = t.centreOuvertureY - t.hauteurOuverture * 0.5, yBas = t.centreOuvertureY + t.hauteurOuverture * 0.5, bas = monde.ySol - yBas, p = paletteTuyau(t.type);
+  if (t.type === "fin") {
+    // Effet lumineux subtil pour identifier le tuyau final.
+    const pulse = 0.5 + 0.5 * Math.sin(partie.temps * 8);
+    contexte.shadowColor = `rgba(255, 223, 95, ${0.35 + pulse * 0.35})`;
+    contexte.shadowBlur = 8 + pulse * 10;
+  }
   contexte.fillStyle = p.corps; contexte.fillRect(t.x, 0, t.w, haut); contexte.fillRect(t.x, yBas, t.w, bas);
   contexte.fillStyle = p.tete; contexte.fillRect(t.x - 4, haut - tete, t.w + 8, tete); contexte.fillRect(t.x - 4, yBas, t.w + 8, tete);
   contexte.strokeStyle = "rgba(0,0,0,0.16)"; contexte.lineWidth = 2; contexte.strokeRect(t.x, 0, t.w, haut); contexte.strokeRect(t.x, yBas, t.w, bas);
+  if (t.type === "fin") {
+    contexte.shadowBlur = 0;
+  }
   if (p.marque) { contexte.fillStyle = "rgba(255,255,255,0.92)"; contexte.font = "bold 18px Trebuchet MS"; contexte.textAlign = "center"; contexte.fillText(p.marque, t.x + t.w * 0.5, haut + 22); }
 }
 function dessinerHenriette() {
