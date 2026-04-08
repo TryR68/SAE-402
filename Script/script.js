@@ -10,8 +10,6 @@ const contexte = canevas.getContext("2d");
 const overlayCentre = document.getElementById("overlay");
 const carteMessage = document.getElementById("messageCard");
 const boutonDemarrerInitial = document.getElementById("startBtn");
-const panneauScore = document.getElementById("distancePanel");
-const panneauEtat = document.getElementById("statusPanel");
 
 // =========================================================
 // Configuration statique
@@ -218,8 +216,8 @@ function mettreAJourParticules(dt) {
 // Entrees joueur (souris/tactile/clavier)
 // =========================================================
 function demanderSaut() { if (partie.mode === "en_cours") entree.sautEnAttente = true; }
-function mettreEnPause() { if (partie.mode !== "en_cours") return; partie.mode = "pause"; definirEtat("Pause"); jouerSonPause(); afficherPause(); }
-function reprendrePartie() { if (partie.mode !== "pause") return; partie.mode = "en_cours"; overlayCentre.classList.add("hidden"); definirEtat("En vol"); dernierTemps = performance.now(); jouerSonPause(); }
+function mettreEnPause() { if (partie.mode !== "en_cours") return; partie.mode = "pause"; jouerSonPause(); afficherPause(); }
+function reprendrePartie() { if (partie.mode !== "pause") return; partie.mode = "en_cours"; overlayCentre.classList.add("hidden"); dernierTemps = performance.now(); jouerSonPause(); }
 
 canevas.addEventListener("pointerdown", () => {
   debloquerAudio();
@@ -253,7 +251,7 @@ function reinitialiserPartie() {
   monde.vitesseDefilement = configuration.monde.vitesseDefilementBase; monde.intervalleTuyau = configuration.monde.intervalleTuyauBase;
   henriette.y = canevas.height * configuration.joueur.ratioYDepart; henriette.vitesseY = 0; henriette.minuterieFlash = 0; henriette.tracees = [];
   entree.sautEnAttente = false;
-  initialiserDecor(); mettreAJourHud(); definirEtat("Pret"); afficherMenu();
+  initialiserDecor(); afficherMenu();
 }
 function appliquerEntree() {
   if (!entree.sautEnAttente) return;
@@ -285,16 +283,14 @@ function appliquerPouvoirTuyau(t) {
     partie.minuterieTurbo = 2.8;
     partie.minuterieBouclier = 5.0; // Bouclier limite a 5 secondes max.
     henriette.vitesseY -= 60 * partie.signeGravite;
-    definirEtat("Boost: turbo + bouclier (5s)!");
     jouerSonBonus();
   }
   else if (t.type === "mobile") {
     // Pas d'effet direct joueur: ce type change la navigation.
-    definirEtat("Tuyaux mobiles!");
   }
-  else if (t.type === "inverse") { partie.signeGravite *= -1; partie.minuterieInverse = 3.8; definirEtat("Gravite inversee!"); jouerSonBonus(); }
-  else if (t.type === "rafale") { partie.minuterieRafale = 3.0; partie.forceRafale = aleatoire(-260, 260); definirEtat("Rafale violette!"); jouerSonBonus(); }
-  else if (t.type === "fin") { definirEtat("Tuyau de fin dore!"); jouerSonBonus(); }
+  else if (t.type === "inverse") { partie.signeGravite *= -1; partie.minuterieInverse = 3.8; jouerSonBonus(); }
+  else if (t.type === "rafale") { partie.minuterieRafale = 3.0; partie.forceRafale = aleatoire(-260, 260); jouerSonBonus(); }
+  else if (t.type === "fin") { jouerSonBonus(); }
 }
 function mettreAJourDifficulte() {
   // Courbe lineaire de difficulte sur le score.
@@ -312,7 +308,7 @@ function mettreAJourMonde(dt) {
   partie.temps += dt; monde.minuterieTuyau += dt;
   // Le spawn standard s'arrete des que le tuyau final est planifie/genere.
   if (!partie.tuyauFinalGenere && monde.minuterieTuyau >= monde.intervalleTuyau) { monde.minuterieTuyau = 0; genererPaireTuyaux(); }
-  if (partie.minuterieInverse > 0) { partie.minuterieInverse -= dt; if (partie.minuterieInverse <= 0) { partie.signeGravite = 1; definirEtat("Gravite normale"); } }
+  if (partie.minuterieInverse > 0) { partie.minuterieInverse -= dt; if (partie.minuterieInverse <= 0) { partie.signeGravite = 1; } }
   if (partie.minuterieRafale > 0) partie.minuterieRafale -= dt;
   for (const t of monde.tuyaux) {
     if (t.type === "mobile") {
@@ -368,7 +364,6 @@ function verifierCollisions() {
         partie.minuterieBouclier = 0;
         t.x = -200;
         henriette.vitesseY = -220 * partie.signeGravite;
-        definirEtat("Bouclier active!");
         jouerSonBonus();
         return;
       }
@@ -380,8 +375,6 @@ function verifierCollisions() {
 // =========================================================
 // Interface et overlays
 // =========================================================
-function mettreAJourHud() { panneauScore.innerHTML = `Score: <strong>${partie.score} / ${configuration.objectifScore}</strong>`; }
-function definirEtat(texte) { panneauEtat.innerHTML = `Etat: <strong>${texte}</strong>`; }
 function afficherMenu() {
   overlayCentre.classList.remove("hidden");
   carteMessage.innerHTML = `
@@ -444,14 +437,13 @@ function demarrerPartie() {
   if (partie.mode === "pause") return reprendrePartie();
   partie.mode = "en_cours";
   overlayCentre.classList.add("hidden");
-  definirEtat("En vol");
   henriette.vitesseY = -120;
   ajouterParticulesTap(henriette.x, henriette.y);
   jouerSonSaut();
   if (monde.tuyaux.length === 0) genererPaireTuyaux();
 }
-function perdrePartie(raison) { if (partie.mode !== "en_cours") return; partie.mode = "perdu"; definirEtat("Perdu"); jouerSonDefaite(); afficherFinPartie("Partie terminee", raison, false); }
-function gagnerPartie() { if (partie.mode !== "en_cours") return; partie.mode = "gagne"; definirEtat("Victoire"); jouerSonVictoire(); afficherFinPartie("Bravo, objectif atteint!", `Tu as atteint ${configuration.objectifScore} points.`, true); }
+function perdrePartie(raison) { if (partie.mode !== "en_cours") return; partie.mode = "perdu"; jouerSonDefaite(); afficherFinPartie("Partie terminee", raison, false); }
+function gagnerPartie() { if (partie.mode !== "en_cours") return; partie.mode = "gagne"; jouerSonVictoire(); afficherFinPartie("Bravo, objectif atteint!", `Tu as atteint ${configuration.objectifScore} points.`, true); }
 
 // =========================================================
 // Rendu
@@ -536,7 +528,7 @@ function boucleJeu(tempsActuel) {
   const dt = Math.min((tempsActuel - dernierTemps) / 1000, 0.033);
   dernierTemps = tempsActuel;
   if (partie.mode === "en_cours") {
-    appliquerEntree(); mettreAJourHenriette(dt); mettreAJourMonde(dt); mettreAJourParticules(dt); verifierCollisions(); mettreAJourHud();
+    appliquerEntree(); mettreAJourHenriette(dt); mettreAJourMonde(dt); mettreAJourParticules(dt); verifierCollisions();
   } else if (partie.mode !== "pause") {
     mettreAJourParticules(dt);
   }
