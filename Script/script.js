@@ -27,7 +27,7 @@ const configuration = {
     ouvertureMaxDebut: 210,
     ouvertureMaxFin: 165
   },
-  joueur: { ratioX: 0.27, ratioYDepart: 0.45, rayonCollision: 16 }
+  joueur: { ratioX: 0.27, ratioYDepart: 0.45, rayonCollision: 20 }
 };
 
 // =========================================================
@@ -65,6 +65,9 @@ const monde = {
 const entree = { sautEnAttente: false };
 // Entite joueur (position, vitesse, feedback visuel).
 const henriette = { x: 0, y: 0, vitesseY: 0, rayonCollision: configuration.joueur.rayonCollision, minuterieFlash: 0, tracees: [] };
+const imageHenriette = new Image();
+imageHenriette.src = "Assets/Images/ImageJeu.png";
+const tailleHenriette = 48;
 // Context audio cree uniquement apres interaction utilisateur.
 const audioJeu = { contexte: null };
 
@@ -148,7 +151,7 @@ function choisirTypeTuyau() {
   const r = Math.random();
   if (partie.score >= 8 && r < 0.18 && partie.dernierTypeTuyau !== "boost") return "boost";
   if (partie.score >= 10 && r < 0.34) return "mobile";
-  if (partie.score >= 14 && r < 0.30) return "inverse";
+  if (partie.score >= 14 && r < 0.36) return "inverse";
   if (partie.score >= 20 && r < 0.42) return "rafale";
   return "normal";
 }
@@ -239,7 +242,6 @@ function mettreAJourScoreFixe() {
 function appliquerEntree() {
   if (!entree.sautEnAttente) return;
   henriette.vitesseY = configuration.physique.impulsionSaut * partie.signeGravite;
-  henriette.minuterieFlash = 0.12;
   jouerSonSaut();
   ajouterParticulesTap(henriette.x - 5, henriette.y + 6);
   entree.sautEnAttente = false;
@@ -466,7 +468,6 @@ function dessinerPaireTuyaux(t) {
   if (p.marque) { contexte.fillStyle = "rgba(255,255,255,0.92)"; contexte.font = "bold 18px Trebuchet MS"; contexte.textAlign = "center"; contexte.fillText(p.marque, t.x + t.w * 0.5, haut + 22); }
 }
 function dessinerHenriette() {
-  for (let i = 0; i < henriette.tracees.length; i++) { const t = henriette.tracees[i]; const a = (i / henriette.tracees.length) * 0.2; contexte.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`; contexte.fillRect(t.x - 12, t.y - 12, 24, 24); }
   const incl = borner(henriette.vitesseY / 700, -0.35, 0.35);
   contexte.save(); contexte.translate(henriette.x, henriette.y); contexte.rotate(incl);
   if (partie.minuterieBouclier > 0) {
@@ -496,10 +497,9 @@ function dessinerHenriette() {
     contexte.lineWidth = 1;
     contexte.strokeRect(xBarre, yBarre, largeurBarre, hauteurBarre);
   }
-  if (henriette.minuterieFlash > 0) { contexte.fillStyle = "rgba(255, 238, 166, 0.85)"; contexte.fillRect(-16, -16, 32, 32); }
-  contexte.fillStyle = "#fff"; contexte.fillRect(-15, -15, 30, 30);
-  contexte.strokeStyle = "rgba(90,120,150,0.7)"; contexte.lineWidth = 2; contexte.strokeRect(-15, -15, 30, 30);
-  contexte.fillStyle = "#39536c"; contexte.font = "bold 8px Trebuchet MS"; contexte.textAlign = "center"; contexte.fillText("henriette", 0, 2);
+  if (imageHenriette.complete && imageHenriette.naturalWidth > 0) {
+    contexte.drawImage(imageHenriette, -tailleHenriette / 2, -tailleHenriette / 2, tailleHenriette, tailleHenriette);
+  }
   contexte.restore();
 }
 function dessinerParticules() {

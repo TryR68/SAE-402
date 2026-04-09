@@ -260,15 +260,18 @@ button:active {
 
 @media (max-width: 760px) {
   .center-overlay {
-    padding: 10px;
+    padding: 10px 8px 14px;
     align-items: start;
+    overflow-y: auto;
   }
 
   .message-card {
-    width: min(96vw, 620px);
+    width: min(98vw, 620px);
     margin-top: 6px;
-    padding: 14px 12px 12px;
+    padding: 14px 12px 14px;
     border-radius: 12px;
+    max-height: calc(100dvh - 20px);
+    overflow-y: auto;
   }
 
   .message-card h1 {
@@ -282,23 +285,24 @@ button:active {
   }
 
   .btn-row {
-    gap: 8px;
-    margin-top: 10px;
+    gap: 10px;
+    margin-top: 12px;
   }
 
   button {
-    padding: 10px 12px;
-    font-size: 0.9rem;
+    min-height: 44px;
+    padding: 11px 14px;
+    font-size: 0.95rem;
   }
 
   .legende-tuyaux {
-    grid-template-columns: repeat(3, minmax(72px, 1fr));
-    gap: 6px;
-    margin: 8px 0 2px;
+    grid-template-columns: repeat(2, minmax(92px, 1fr));
+    gap: 8px;
+    margin: 10px 0 4px;
   }
 
   .carte-tuyau {
-    padding: 6px 3px 5px;
+    padding: 8px 5px 6px;
   }
 
   .mini-tuyau {
@@ -308,7 +312,7 @@ button:active {
   }
 
   .effet-tuyau {
-    font-size: 0.7rem;
+    font-size: 0.74rem;
   }
 }
 
@@ -322,7 +326,8 @@ button:active {
   }
 
   .message-card {
-    padding: 12px 10px 10px;
+    width: min(98vw, 620px);
+    padding: 12px 10px 12px;
   }
 
   .message-card h1 {
@@ -332,10 +337,12 @@ button:active {
   .btn-row {
     flex-direction: column;
     align-items: stretch;
+    gap: 8px;
   }
 
   button {
     width: 100%;
+    min-height: 46px;
   }
 
   .legende-tuyaux {
