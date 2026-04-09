@@ -443,12 +443,12 @@ function dessinerFond() {
   for (const f of monde.fleurs) { contexte.fillStyle = `hsl(${f.teinte}, 85%, 67%)`; contexte.beginPath(); contexte.arc(f.x, f.y, 2.6, 0, Math.PI * 2); contexte.fill(); }
 }
 function paletteTuyau(type) {
-  if (type === "fin") return { corps: "#f1c232", tete: "#c89f1a", marque: "*" };
-  if (type === "boost") return { corps: "#d94949", tete: "#a62f2f", marque: "B" };
-  if (type === "mobile") return { corps: "#55c88a", tete: "#329b66", marque: "M" };
-  if (type === "inverse") return { corps: "#4386e0", tete: "#2a5dab", marque: "I" };
-  if (type === "rafale") return { corps: "#9b58d5", tete: "#6f38a8", marque: "W" };
-  return { corps: "#3fb15f", tete: "#2f8f4c", marque: "" };
+  if (type === "fin") return { corps: "#f1c232", tete: "#c89f1a" };
+  if (type === "boost") return { corps: "#d94949", tete: "#a62f2f" };
+  if (type === "mobile") return { corps: "#55c88a", tete: "#329b66" };
+  if (type === "inverse") return { corps: "#4386e0", tete: "#2a5dab" };
+  if (type === "rafale") return { corps: "#9b58d5", tete: "#6f38a8" };
+  return { corps: "#3fb15f", tete: "#2f8f4c" };
 }
 function dessinerPaireTuyaux(t) {
   // Les caps ("tetes") rendent les tuyaux plus lisibles visuellement.
@@ -465,7 +465,6 @@ function dessinerPaireTuyaux(t) {
   if (t.type === "fin") {
     contexte.shadowBlur = 0;
   }
-  if (p.marque) { contexte.fillStyle = "rgba(255,255,255,0.92)"; contexte.font = "bold 18px Trebuchet MS"; contexte.textAlign = "center"; contexte.fillText(p.marque, t.x + t.w * 0.5, haut + 22); }
 }
 function dessinerHenriette() {
   const incl = borner(henriette.vitesseY / 700, -0.35, 0.35);
